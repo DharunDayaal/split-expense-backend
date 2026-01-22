@@ -16,6 +16,20 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 
+// Database connection middleware
+app.use(async (req, res, next) => {
+    try {
+        await connectToDatabase();
+        next();
+    } catch (error) {
+        console.error('Database connection error:', error);
+        res.status(503).json({
+            success: false,
+            error: 'Database connection failed. Please try again.'
+        });
+    }
+});
+
 app.use('/api/auth', authRouter);
 app.use('/api/user', userRouter);
 app.use('/api/group', groupRouter);
@@ -24,7 +38,14 @@ app.use('/api/settlement', settlementRouter);
 
 app.use(errorMiddleware);
 
-app.listen(3000, async () => {
-    await connectToDatabase();
-    console.log('Server is started on port 3000');
-})
+// For Vercel serverless, export the app
+export default app;
+
+// Only start server if not in Vercel environment
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+    const PORT = process.env.PORT || 3000;
+    app.listen(PORT, async () => {
+        await connectToDatabase();
+        console.log(`Server is started on port ${PORT}`);
+    });
+}
